@@ -14,7 +14,8 @@ from sqlalchemy import select, func as sqlfunc
 from dotenv import load_dotenv
 
 from config import settings
-from database import init_db, AsyncSessionLocal
+from database import init_db
+import database
 from models.db_models import AnalysisSession, GeneratedDocument, JobApplication
 from models.schemas import (
     AnalysisResult, JobAnalysis, ResumeAnalysis, SkillGap,
@@ -108,10 +109,10 @@ async def _save_analysis(
     resume_key: str = "",
     job_key: str = "",
 ) -> None:
-    if AsyncSessionLocal is None:
+    if database.AsyncSessionLocal is None:
         return
     try:
-        async with AsyncSessionLocal() as db:
+        async with database.AsyncSessionLocal() as db:
             row = AnalysisSession(
                 id=session_id,
                 resume_filename=resume_filename,
@@ -134,10 +135,10 @@ async def _save_document(
     session_id: str, doc_type: str, fmt: str, filename: str,
     storage_key: str, size: int
 ) -> None:
-    if AsyncSessionLocal is None:
+    if database.AsyncSessionLocal is None:
         return
     try:
-        async with AsyncSessionLocal() as db:
+        async with database.AsyncSessionLocal() as db:
             db.add(GeneratedDocument(
                 session_id=session_id,
                 doc_type=doc_type,
@@ -154,10 +155,10 @@ async def _save_document(
 async def _save_application(
     session_id: str, recipient: str, subject: str, status: str, n_attachments: int
 ) -> None:
-    if AsyncSessionLocal is None:
+    if database.AsyncSessionLocal is None:
         return
     try:
-        async with AsyncSessionLocal() as db:
+        async with database.AsyncSessionLocal() as db:
             db.add(JobApplication(
                 session_id=session_id,
                 recipient_email=recipient,
@@ -544,10 +545,10 @@ async def list_agent_tools():
 @app.get("/api/history")
 async def get_history():
     """Return the 50 most-recent analysis sessions from the database."""
-    if AsyncSessionLocal is None:
+    if database.AsyncSessionLocal is None:
         return {"available": False, "items": [], "message": "Database not configured"}
     try:
-        async with AsyncSessionLocal() as db:
+        async with database.AsyncSessionLocal() as db:
             rows = (await db.execute(
                 select(AnalysisSession)
                 .order_by(AnalysisSession.created_at.desc())
@@ -577,9 +578,9 @@ async def get_history():
 @app.get("/api/history/{session_id}")
 async def get_history_item(session_id: str):
     """Return full analysis details for a specific session."""
-    if AsyncSessionLocal is None:
+    if database.AsyncSessionLocal is None:
         raise HTTPException(503, "Database not configured")
-    async with AsyncSessionLocal() as db:
+    async with database.AsyncSessionLocal() as db:
         row = (await db.execute(
             select(AnalysisSession).where(AnalysisSession.id == session_id)
         )).scalar_one_or_none()
@@ -604,9 +605,9 @@ async def system_stats():
     storage = _storage_module.storage  # module-level singleton, no per-call import
 
     db_stats: dict = {"available": False, "total_analyses": 0, "total_documents": 0, "total_applications": 0}
-    if AsyncSessionLocal is not None:
+    if database.AsyncSessionLocal is not None:
         try:
-            async with AsyncSessionLocal() as db:
+            async with database.AsyncSessionLocal() as db:
                 analyses, documents, applications = await asyncio.gather(
                     db.scalar(select(sqlfunc.count()).select_from(AnalysisSession)),
                     db.scalar(select(sqlfunc.count()).select_from(GeneratedDocument)),
@@ -643,7 +644,7 @@ async def health_check():
         "uptime_seconds": round(time.time() - START_TIME),
         "gemini_configured": gemini_service is not None,
         "agent_available": GEMINI_API_KEY is not None,
-        "database": AsyncSessionLocal is not None,
+        "database": database.AsyncSessionLocal is not None,
         "cache": cache.available,
         "storage_backend": settings.STORAGE_BACKEND,
         "track_a_compliant": True,
@@ -651,7 +652,7 @@ async def health_check():
             "langchain_integration": True,
             "tool_system": True,
             "real_actions": True,
-            "persistent_storage": AsyncSessionLocal is not None,
+            "persistent_storage": database.AsyncSessionLocal is not None,
             "redis_cache": cache.available,
             "cloud_storage": settings.STORAGE_BACKEND != "local",
         },
