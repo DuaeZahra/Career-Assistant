@@ -1,0 +1,69 @@
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+venv/
+env/
+ENV/
+.venv
+
+# Environment variables
+.env
+
+# Uploads and generated files
+uploads/
+generated/
+backend/uploads/
+backend/generated/
+
+# Database files
+*.db
+*.sqlite
+*.sqlite3
+
+# Private keys and credentials
+*.pem
+*.key
+service-account.json
+
+# Test documents
+test docs/
+
+# Next.js
+frontend/.next/
+frontend/out/
+frontend/node_modules/
+frontend/dist
+frontend/.env.local
+frontend/.env.development.local
+frontend/.env.test.local
+frontend/.env.production.local
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+*~
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+
+# Build outputs
+*.egg-info/
+dist/
+build/
