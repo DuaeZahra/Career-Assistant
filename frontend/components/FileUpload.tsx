@@ -2,6 +2,8 @@
 
 import { useState, useCallback } from "react";
 
+const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+
 interface FileUploadProps {
   onAnalysisComplete: (data: any, files: { resume: File; jobDescription: File }) => void;
 }
@@ -75,7 +77,7 @@ export default function FileUpload({ onAnalysisComplete }: FileUploadProps) {
       formData.append("resume", resumeFile);
       formData.append("job_description", jobFile);
 
-      const response = await fetch("http://localhost:8000/api/upload-and-analyze", {
+      const response = await fetch(`${API}/api/upload-and-analyze`, {
         method: "POST",
         body: formData,
       });

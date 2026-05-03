@@ -6,9 +6,8 @@ import AnalysisResults from "@/components/AnalysisResults";
 import DocumentGeneration from "@/components/DocumentGeneration";
 import EmailSender from "@/components/EmailSender";
 import ApplicationHistory from "@/components/ApplicationHistory";
-import MonitoringDashboard from "@/components/MonitoringDashboard";
 
-type Tab = "assistant" | "history" | "monitor";
+type Tab = "assistant" | "history";
 
 export default function Home() {
   const [activeTab, setActiveTab] = useState<Tab>("assistant");
@@ -39,7 +38,6 @@ export default function Home() {
   const tabs: { id: Tab; label: string; icon: string }[] = [
     { id: "assistant", label: "Career Assistant", icon: "🎯" },
     { id: "history",   label: "History",          icon: "📋" },
-    { id: "monitor",   label: "System Monitor",   icon: "📊" },
   ];
 
   return (
@@ -126,9 +124,6 @@ export default function Home() {
 
         {/* ── History tab ── */}
         {activeTab === "history" && <ApplicationHistory />}
-
-        {/* ── Monitor tab ── */}
-        {activeTab === "monitor" && <MonitoringDashboard />}
       </div>
 
       {/* Footer */}

@@ -2,6 +2,8 @@
 
 import { useState } from "react";
 
+const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+
 interface DocumentGenerationProps {
   resumeFile: File | null;
   jobDescriptionFile: File | null;
@@ -32,7 +34,7 @@ export default function DocumentGeneration({ resumeFile, jobDescriptionFile, onD
       formData.append("job_description", jobDescriptionFile);
       formData.append("format", format);
 
-      const response = await fetch("http://localhost:8000/api/generate-resume", {
+      const response = await fetch(`${API}/api/generate-resume`, {
         method: "POST",
         body: formData,
       });
@@ -99,7 +101,7 @@ export default function DocumentGeneration({ resumeFile, jobDescriptionFile, onD
       formData.append("job_description", jobDescriptionFile);
       formData.append("format", format);
 
-      const response = await fetch("http://localhost:8000/api/generate-cover-letter", {
+      const response = await fetch(`${API}/api/generate-cover-letter`, {
         method: "POST",
         body: formData,
       });

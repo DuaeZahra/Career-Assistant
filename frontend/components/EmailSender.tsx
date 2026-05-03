@@ -2,6 +2,8 @@
 
 import { useState } from "react";
 
+const API = process.env.NEXT_PUBLIC_API_URL || "http://localhost:8000";
+
 interface EmailSenderProps {
   contactEmail: string | null;
   jobTitle: string;
@@ -50,7 +52,7 @@ export default function EmailSender({
     setSuccess(null);
 
     try {
-      const response = await fetch("http://localhost:8000/api/send-email", {
+      const response = await fetch(`${API}/api/send-email`, {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

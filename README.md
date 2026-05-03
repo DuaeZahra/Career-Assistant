@@ -1,259 +1,221 @@
-# 🚀 Automated Career Assistant
+# Automated Career Assistant
 
-An AI-powered career assistant that analyzes job descriptions and resumes to identify skill gaps and generate tailored resumes and cover letters using Google Gemini AI.
+AI-powered career assistant that analyzes job descriptions and resumes, identifies skill gaps, generates tailored resumes and cover letters, and sends application emails — all running on a containerized cloud-native stack.
 
-![Tech Stack](https://img.shields.io/badge/Next.js-14-black?style=for-the-badge&logo=next.js)
-![FastAPI](https://img.shields.io/badge/FastAPI-0.109-009688?style=for-the-badge&logo=fastapi)
-![Python](https://img.shields.io/badge/Python-3.8+-3776AB?style=for-the-badge&logo=python)
-![TypeScript](https://img.shields.io/badge/TypeScript-5.0-3178C6?style=for-the-badge&logo=typescript)
-![Google Gemini](https://img.shields.io/badge/Google_Gemini-AI-4285F4?style=for-the-badge&logo=google)
+![Next.js](https://img.shields.io/badge/Next.js-16-black?style=flat-square&logo=next.js)
+![FastAPI](https://img.shields.io/badge/FastAPI-Python_3.11-009688?style=flat-square&logo=fastapi)
+![Postgres](https://img.shields.io/badge/PostgreSQL-16-336791?style=flat-square&logo=postgresql)
+![Redis](https://img.shields.io/badge/Redis-7-DC382D?style=flat-square&logo=redis)
+![Docker](https://img.shields.io/badge/Docker-Compose-2496ED?style=flat-square&logo=docker)
+![AWS](https://img.shields.io/badge/AWS-EC2-FF9900?style=flat-square&logo=amazon-aws)
 
-## ✨ Features
+## Live Deployment
 
-- **📄 PDF Parsing**: Extract text from resume and job description PDFs
-- **🔍 Skill Gap Analysis**: AI-powered comparison of your skills vs. job requirements
-- **📊 Visual Match Percentage**: See how well you match the job posting
-- **✍️ Tailored Resume Generation**: Create ATS-friendly resumes optimized for specific jobs
-- **💌 Cover Letter Generation**: Generate compelling, personalized cover letters
-- **📥 Multiple Export Formats**: Download documents in DOCX or PDF format
-- **🎨 Modern UI**: Beautiful, responsive interface built with Next.js and Tailwind CSS
+| | |
+|---|---|
+| Frontend | http://44.195.26.38:3000 |
+| Backend API | http://44.195.26.38:8000 |
+| Health check | http://44.195.26.38:8000/api/health |
 
-## 🛠️ Tech Stack
+Hosted on AWS EC2 (Ubuntu 24.04, `t3.small`-class), 4 Docker containers behind a single security group.
 
-### Frontend
-- **Next.js 14** - React framework with App Router
-- **TypeScript** - Type-safe JavaScript
-- **Tailwind CSS** - Utility-first CSS framework
-- **React Hooks** - Modern state management
+## What it does
 
-### Backend
-- **FastAPI** - Modern, fast Python web framework
-- **Google Gemini AI** - Advanced language model for analysis and generation
-- **pypdf** - PDF text extraction
-- **python-docx** - DOCX file generation
-- **ReportLab** - PDF file generation
+1. **Upload** — drop your resume PDF and a job description PDF
+2. **Analyze** — Google Gemini extracts skills, responsibilities, and key requirements from both, then computes a match percentage
+3. **Generate** — produces an ATS-friendly tailored resume + a personalized cover letter (DOCX or PDF)
+4. **Send** — emails the application with attachments directly to the hiring manager via SMTP
+5. **Track** — every analysis, generated document, and sent email is persisted to Postgres and visible in the History tab
 
-## 📋 Prerequisites
+## Architecture
 
-- **Node.js** 20.9.0 or higher (for Next.js)
-- **Python** 3.8 or higher
-- **Google Gemini API Key** - [Get one here](https://makersuite.google.com/app/apikey)
-
-## 🚀 Installation
-
-### 1. Clone the Repository
-
-```bash
-git clone <repository-url>
-cd agentic
+```
+                ┌──────────────────────────────────────┐
+                │            AWS EC2 Instance          │
+                │   (Ubuntu 24.04, single host)        │
+                │                                      │
+   Browser ───► │  ┌──────────┐    ┌──────────┐       │
+   :3000       │  │ Next.js  │───►│ FastAPI  │       │
+                │  │ frontend │    │ backend  │       │
+                │  └──────────┘    └─┬──┬──┬──┘       │
+                │                    │  │  │           │
+                │           ┌────────┘  │  └────────┐  │
+                │           ▼           ▼           ▼  │
+                │     ┌──────────┐ ┌────────┐ ┌──────┐ │
+                │     │ Postgres │ │ Redis  │ │ Disk │ │
+                │     │ history  │ │ cache  │ │ files│ │
+                │     └──────────┘ └────────┘ └──────┘ │
+                │                                      │
+                └──────────────────────────────────────┘
+                              │
+                              ▼ SMTP (port 587)
+                         Gmail / SES
+                              │
+                              ▼
+                       Hiring manager
 ```
 
-### 2. Backend Setup
+| Service | Image | Purpose |
+|---|---|---|
+| `frontend` | `node:20-alpine` (multi-stage build) | Next.js 16 UI on port 3000 |
+| `backend` | `python:3.11-slim` | FastAPI + LangChain agent on port 8000 |
+| `postgres` | `postgres:16-alpine` | Persistent analysis/document/application history |
+| `redis` | `redis:7-alpine` | LRU cache for Gemini responses (saves API cost on duplicate runs) |
+
+For the full breakdown of cloud concepts, AWS infrastructure choices, and the local→deployed update workflow, see **[CLOUD_AND_OPERATIONS.md](CLOUD_AND_OPERATIONS.md)**.
+
+## Tech Stack
+
+**Frontend** — Next.js 16 (App Router), TypeScript, Tailwind CSS
+**Backend** — FastAPI, SQLAlchemy 2.0 async, Pydantic v2, LangChain
+**AI** — Google Gemini 2.5 Flash Lite
+**Data** — PostgreSQL 16 (async via `asyncpg`), Redis 7
+**PDF/DOCX** — `pypdf`, `python-docx`, ReportLab
+**Email** — `smtplib` over STARTTLS to Gmail SMTP
+**Infra** — Docker Compose, AWS EC2, AWS VPC
+
+## Quick Start (Local Development)
+
+### Prerequisites
+- Docker Desktop (or Docker Engine + Compose)
+- A Google Gemini API key — [get one free here](https://aistudio.google.com/apikey)
+- (Optional, for email) Gmail account with 2FA enabled and an [App Password](https://myaccount.google.com/apppasswords)
+
+### Run the full stack with Docker Compose
 
 ```bash
-# Navigate to backend directory
+git clone <your-repo-url>
+cd "Automated Career Assistant"
+
+# Create .env in the repo root
+cat > .env <<EOF
+GEMINI_API_KEY=your-key-here
+POSTGRES_PASSWORD=career123
+ALLOWED_ORIGINS=http://localhost:3000
+NEXT_PUBLIC_API_URL=http://localhost:8000
+SENDER_EMAIL=your-email@gmail.com
+SENDER_PASSWORD=your-16-char-app-password
+EOF
+
+docker compose up -d --build
+```
+
+That brings up all 4 services. Visit:
+- App: http://localhost:3000
+- API docs: http://localhost:8000/docs
+- Health: http://localhost:8000/api/health
+
+### Run components without Docker (development)
+
+```bash
+# Backend
 cd backend
-
-# Create a virtual environment (recommended)
-python -m venv venv
-
-# Activate virtual environment
-# On Linux/Mac:
-source venv/bin/activate
-# On Windows:
-# venv\Scripts\activate
-
-# Install dependencies
+python -m venv venv && source venv/bin/activate   # Windows: venv\Scripts\activate
 pip install -r requirements.txt
-```
+python main.py     # serves on :8000
 
-### 3. Frontend Setup
-
-```bash
-# Navigate to frontend directory
-cd ../frontend
-
-# Install dependencies
-npm install
-```
-
-### 4. Environment Configuration
-
-Create a `.env` file in the root directory:
-
-```bash
-# Copy the example file
-cp .env.example .env
-```
-
-Edit `.env` and add your Google Gemini API key:
-
-```env
-GEMINI_API_KEY=your_actual_gemini_api_key_here
-```
-
-> **Get your Gemini API Key**: Visit [Google AI Studio](https://makersuite.google.com/app/apikey) to generate a free API key.
-
-## 🎯 Running the Application
-
-### Start the Backend Server
-
-```bash
-# From the backend directory
-cd backend
-python main.py
-```
-
-The backend API will run at `http://localhost:8000`
-
-### Start the Frontend Development Server
-
-```bash
-# From the frontend directory (in a new terminal)
+# Frontend (new terminal)
 cd frontend
-npm run dev
+npm install
+npm run dev        # serves on :3000
 ```
 
-The frontend will run at `http://localhost:3000`
+In this mode the backend uses SQLite (no Postgres needed) and runs without Redis (cache silently disabled). Gemini API key is still required.
 
-## 📖 Usage
-
-1. **Open your browser** and navigate to `http://localhost:3000`
-
-2. **Upload Files**:
-   - Drag and drop or click to upload your resume (PDF format)
-   - Drag and drop or click to upload the job description (PDF format)
-
-3. **Analyze**:
-   - Click "Analyze with AI" button
-   - Wait for the AI to process your documents
-
-4. **Review Results**:
-   - View your match percentage
-   - See matching, partial, and missing skills
-   - Review key responsibilities and your experience
-
-5. **Generate Documents**:
-   - Click "DOCX" or "PDF" under "Tailored Resume" to generate an optimized resume
-   - Click "DOCX" or "PDF" under "Cover Letter" to generate a personalized cover letter
-   - Documents will be automatically downloaded
-
-## 📁 Project Structure
+## Project Structure
 
 ```
-agentic/
+.
+├── docker-compose.yml          # 4-service orchestration with healthchecks
+├── .env                        # Local config (gitignored)
+├── README.md                   # this file
+├── CLOUD_AND_OPERATIONS.md     # cloud architecture + update workflow
+├── FEATURES.md                 # feature-level breakdown
+│
 ├── backend/
-│   ├── main.py                 # FastAPI application entry point
-│   ├── requirements.txt        # Python dependencies
+│   ├── Dockerfile              # python:3.11-slim
+│   ├── main.py                 # FastAPI app, all endpoints, lifespan
+│   ├── config.py               # pydantic-settings, env-driven
+│   ├── database.py             # async SQLAlchemy engine + session factory
 │   ├── models/
-│   │   └── schemas.py         # Pydantic models
-│   ├── services/
-│   │   ├── pdf_parser.py      # PDF text extraction
-│   │   ├── gemini_service.py  # Google Gemini AI integration
-│   │   ├── skill_analyzer.py  # Skill gap analysis logic
-│   │   └── document_generator.py # Document generation (DOCX/PDF)
-│   └── utils/
+│   │   ├── db_models.py        # AnalysisSession, GeneratedDocument, JobApplication
+│   │   └── schemas.py          # Pydantic request/response models
+│   └── services/
+│       ├── pdf_parser.py       # pypdf wrapper
+│       ├── gemini_service.py   # Gemini API client + prompts
+│       ├── skill_analyzer.py   # exact/partial/missing matching
+│       ├── document_generator.py  # DOCX + PDF rendering
+│       ├── email_service.py    # SMTP send with attachments
+│       ├── cache_service.py    # Redis client with hit-rate tracking
+│       ├── storage_service.py  # local | s3 | gcs storage abstraction
+│       └── agent_service.py    # LangChain ReAct agent
 │
-├── frontend/
-│   ├── app/
-│   │   ├── page.tsx           # Main application page
-│   │   ├── layout.tsx         # Root layout
-│   │   └── globals.css        # Global styles
-│   ├── components/
-│   │   ├── FileUpload.tsx     # File upload component
-│   │   ├── AnalysisResults.tsx # Results display component
-│   │   └── DocumentGeneration.tsx # Document generation component
-│   ├── package.json
-│   └── tsconfig.json
-│
-├── uploads/                    # Temporary PDF storage (created automatically)
-├── generated/                  # Generated documents storage (created automatically)
-├── .env.example               # Environment variables template
-└── README.md                  # This file
+└── frontend/
+    ├── Dockerfile              # multi-stage: builder → standalone runtime
+    ├── app/
+    │   ├── page.tsx            # tab router (Career Assistant, History)
+    │   └── layout.tsx
+    └── components/
+        ├── FileUpload.tsx
+        ├── AnalysisResults.tsx
+        ├── DocumentGeneration.tsx
+        ├── EmailSender.tsx
+        └── ApplicationHistory.tsx
 ```
 
-## 🔌 API Endpoints
+## API Endpoints
 
-### Backend API (http://localhost:8000)
+| Method | Path | Purpose |
+|---|---|---|
+| `GET` | `/` | Service info |
+| `GET` | `/api/health` | Liveness + dependency status (DB, cache, Gemini) |
+| `GET` | `/api/system/stats` | DB row counts, Redis hit-rate, storage stats |
+| `POST` | `/api/upload-and-analyze` | Multipart upload of resume + JD → analysis |
+| `POST` | `/api/generate-resume` | Tailored resume (DOCX or PDF) |
+| `POST` | `/api/generate-cover-letter` | Cover letter (DOCX or PDF) |
+| `POST` | `/api/send-email` | Send application email with attachments |
+| `GET` | `/api/history` | Last 50 analyses |
+| `GET` | `/api/history/{id}` | Full details for one analysis |
+| `POST` | `/api/agent/run` | LangChain agent end-to-end task |
+| `GET` | `/api/agent/tools` | List of available agent tools |
 
-- `GET /` - API status
-- `GET /api/health` - Health check
-- `POST /api/upload-and-analyze` - Upload files and analyze skill gaps
-- `POST /api/generate-resume` - Generate tailored resume
-- `POST /api/generate-cover-letter` - Generate cover letter
+Auto-generated OpenAPI docs at `/docs`.
 
-### API Documentation
+## Configuration
 
-Once the backend is running, visit:
-- Swagger UI: `http://localhost:8000/docs`
-- ReDoc: `http://localhost:8000/redoc`
+All configuration is environment-driven (12-factor). Required and optional vars:
 
-## 🎨 Features in Detail
+| Variable | Required | Default | Notes |
+|---|---|---|---|
+| `GEMINI_API_KEY` | yes | — | Google AI Studio key |
+| `POSTGRES_PASSWORD` | yes (Docker) | `career123` | Database password |
+| `DATABASE_URL` | no | SQLite local file | Auto-set by Compose to Postgres |
+| `REDIS_URL` | no | `redis://localhost:6379/0` | Auto-set by Compose to `redis://redis:6379/0` |
+| `ALLOWED_ORIGINS` | yes (prod) | `http://localhost:3000,http://localhost:3001` | CORS allowlist, comma-separated |
+| `NEXT_PUBLIC_API_URL` | yes (prod) | `http://localhost:8000` | Baked into frontend at build time |
+| `STORAGE_BACKEND` | no | `local` | `local`, `s3`, or `gcs` |
+| `SENDER_EMAIL` | for email | — | Gmail address |
+| `SENDER_PASSWORD` | for email | — | Gmail App Password (16 chars, no spaces) |
+| `SMTP_SERVER` | no | `smtp.gmail.com` | |
+| `SMTP_PORT` | no | `587` | STARTTLS |
+| `CACHE_TTL` | no | `3600` | Seconds (1 hour) |
 
-### Skill Gap Analysis
-- Identifies exact matching skills between resume and job description
-- Finds partial matches (related skills)
-- Lists missing skills you should consider adding
-- Calculates overall match percentage
+## Troubleshooting
 
-### Document Generation
-- **Tailored Resumes**: Reorganizes and emphasizes relevant experience
-- **ATS Optimization**: Uses keywords from job description naturally
-- **Professional Formatting**: Clean, readable structure
-- **Cover Letters**: Personalized content highlighting key qualifications
+**Frontend gets CORS error after deploying**
+The browser-served origin (e.g. `http://44.195.26.38:3000`) must be in `ALLOWED_ORIGINS`. Set it in `.env` and recreate the backend container — see [CLOUD_AND_OPERATIONS.md](CLOUD_AND_OPERATIONS.md).
 
-## 🤝 Contributing
+**`/api/health` returns `database: false`**
+Check `docker compose logs backend | grep -i database` for the actual error. Common cause: the backend started before Postgres was ready. Recreating the backend (`docker compose up -d --force-recreate backend`) usually fixes it because Compose now waits for Postgres's healthcheck.
 
-Contributions are welcome! Please feel free to submit a Pull Request.
+**Email sends fail with `535 BadCredentials`**
+You're using your regular Gmail password instead of an App Password, or you pasted the App Password with spaces. Re-generate at https://myaccount.google.com/apppasswords, store as 16 unbroken chars.
 
-## 📝 License
+**Frontend changes don't appear in browser after redeploy**
+Hard-refresh (Ctrl+Shift+R) or open in Incognito. Next.js standalone bundles are heavily cached.
 
-This project is open source and available under the MIT License.
+For full operational guidance see [CLOUD_AND_OPERATIONS.md](CLOUD_AND_OPERATIONS.md).
 
-## ⚠️ Important Notes
+## License
 
-- Always review and customize generated documents before submission
-- The AI provides a strong starting point, but personal touches make the difference
-- Keep your Gemini API key secure and never commit it to version control
-- PDF text extraction works best with text-based PDFs (not scanned images)
-
-## 🐛 Troubleshooting
-
-### Backend Issues
-
-**Issue**: `GEMINI_API_KEY not found`
-- **Solution**: Make sure you created a `.env` file in the root directory with your API key
-
-**Issue**: `Module not found` errors
-- **Solution**: Ensure virtual environment is activated and run `pip install -r requirements.txt`
-
-**Issue**: Port 8000 already in use
-- **Solution**: Change the port in `main.py` or kill the process using port 8000
-
-### Frontend Issues
-
-**Issue**: Module resolution errors
-- **Solution**: Delete `node_modules` and `package-lock.json`, then run `npm install` again
-
-**Issue**: CORS errors
-- **Solution**: Ensure the backend is running and CORS settings in `main.py` allow `http://localhost:3000`
-
-**Issue**: Node version warning
-- **Solution**: Update Node.js to version 20.9.0 or higher
-
-## 🌟 Future Enhancements
-
-- [ ] Support for multiple file formats (Word, plain text)
-- [ ] User authentication and document history
-- [ ] Batch processing for multiple job applications
-- [ ] LinkedIn profile integration
-- [ ] Interview preparation tips based on analysis
-- [ ] Export analysis reports
-- [ ] Mobile app version
-
-## 📧 Contact
-
-For questions or support, please open an issue in the repository.
-
----
-
+MIT — see source for details.
