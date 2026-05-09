@@ -200,22 +200,3 @@ All configuration is environment-driven (12-factor). Required and optional vars:
 | `SMTP_PORT` | no | `587` | STARTTLS |
 | `CACHE_TTL` | no | `3600` | Seconds (1 hour) |
 
-## Troubleshooting
-
-**Frontend gets CORS error after deploying**
-The browser-served origin (e.g. `http://44.195.26.38:3000`) must be in `ALLOWED_ORIGINS`. Set it in `.env` and recreate the backend container — see [CLOUD_AND_OPERATIONS.md](CLOUD_AND_OPERATIONS.md).
-
-**`/api/health` returns `database: false`**
-Check `docker compose logs backend | grep -i database` for the actual error. Common cause: the backend started before Postgres was ready. Recreating the backend (`docker compose up -d --force-recreate backend`) usually fixes it because Compose now waits for Postgres's healthcheck.
-
-**Email sends fail with `535 BadCredentials`**
-You're using your regular Gmail password instead of an App Password, or you pasted the App Password with spaces. Re-generate at https://myaccount.google.com/apppasswords, store as 16 unbroken chars.
-
-**Frontend changes don't appear in browser after redeploy**
-Hard-refresh (Ctrl+Shift+R) or open in Incognito. Next.js standalone bundles are heavily cached.
-
-For full operational guidance see [CLOUD_AND_OPERATIONS.md](CLOUD_AND_OPERATIONS.md).
-
-## License
-
-MIT — see source for details.
